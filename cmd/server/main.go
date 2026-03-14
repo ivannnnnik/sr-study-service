@@ -52,8 +52,8 @@ func main() {
 
 	// Inicialized DB
 
-	questionRepo := repository.NewQuestionRepository(db)
-	questionService := service.NewQuestionService(questionRepo)
+	studyRepo := repository.NewStudyRepository(db)
+	studyService := service.NewQuestionService(questionRepo)
 	questionHandler := handler.NewQuestionHandler(questionService)
 
 	// gRPC Server
