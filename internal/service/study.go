@@ -27,8 +27,8 @@ func NewStudyService(repo studyRepo) *StudyService{
 func (svc *StudyService) Create(ctx context.Context, title, category, difficulty string) (*model.Question, error){
 	
 	questionModel := model.StudyProgress{
-		Title: title,
-		Category: category,
+		UserID: title,
+		QuestionID: category,
 		Difficulty: difficulty,
 	}
 	
