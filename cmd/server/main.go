@@ -52,19 +52,20 @@ func main() {
 
 	// Inicialized DB
 
+	// DI
 	studyRepo := repository.NewStudyRepository(db)
-	studyService := service.NewQuestionService(questionRepo)
-	questionHandler := handler.NewQuestionHandler(questionService)
+	studyService := service.NewStudyService(studyRepo)
+	studyHandler := handler.NewStudyHandler(studyService)
 
 	// gRPC Server
 	lis, err := net.Listen("tcp", ":50051")
-	if err != nil{
-		log.Fatal("Erorr run grpc server!")
+	if err != nil {
+		log.Fatal("Error run grpc server!")
 	}
 
 	grpcServer := grpc.NewServer()
 
-	study1.RegisterQuestionServiceServer(grpcServer, questionHandler)
+	study1.RegisterStudyServiceServer(grpcServer, studyHandler)
 
 	reflection.Register(grpcServer)
 
