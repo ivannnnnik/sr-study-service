@@ -2,120 +2,62 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/ivannnnnik/sr-study-service/internal/model"
 	"github.com/jmoiron/sqlx"
 )
 
-type StudyRepository struct{
+type StudyRepository struct {
 	db *sqlx.DB
 }
 
-func NewStudyRepository(db *sqlx.DB) *StudyRepository{
-	return &StudyRepository{
-		db: db,
-	}
+func NewStudyRepository(db *sqlx.DB) *StudyRepository {
+	return &StudyRepository{db: db}
 }
 
-func (r *StudyRepository) Create(ctx context.Context, studyProgress *model.StudyProgress) error{
+func (r *StudyRepository) GetByUserAndQuestion(ctx context.Context, userID, questionID string) (*model.StudyProgress, error) {
+	query := `SELECT id, user_id, question_id, ease_factor, interval, repetitions, next_review_at, last_reviewed_at
+	          FROM study_progress WHERE user_id = $1 AND question_id = $2`
 
+	var sp model.StudyProgress
+	err := r.db.GetContext(ctx, &sp, query, userID, questionID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil // нет записи — не ошибка, первый ответ
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get progress: %w", err)
+	}
+	return &sp, nil
+}
+
+func (r *StudyRepository) Upsert(ctx context.Context, sp *model.StudyProgress) error {
 	query := `
-	INSERT INTO study_progress(user_id, question_id, easy_factor, interval, repetitions, category, difficulty, next_review_at, last_reviewed_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
-	RETURNING id, user_id, question_id, easy_factor, interval, repetitions, category, difficulty, next_review_at, last_reviewed_at;
-	`
+	INSERT INTO study_progress (user_id, question_id, ease_factor, interval, repetitions, next_review_at, last_reviewed_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7)
+	ON CONFLICT (user_id, question_id) DO UPDATE SET
+		ease_factor      = EXCLUDED.ease_factor,
+		interval         = EXCLUDED.interval,
+		repetitions      = EXCLUDED.repetitions,
+		next_review_at   = EXCLUDED.next_review_at,
+		last_reviewed_at = EXCLUDED.last_reviewed_at
+	RETURNING id`
 
-	err := r.db.QueryRowContext(ctx, query, studyProgress.UserID, studyProgress.QuestionID, studyProgress.EasyFactor, studyProgress.Interval, studyProgress.Repetitions, studyProgress.NextReviewAt, studyProgress.LastReviewAt).
-	Scan(&studyProgress.ID, &studyProgress.UserID, &studyProgress.QuestionID, &studyProgress.EasyFactor, &studyProgress.Interval, &studyProgress.Repetitions, &studyProgress.NextReviewAt, &studyProgress.LastReviewAt)
-	
-	return err
+	return r.db.QueryRowContext(ctx, query,
+		sp.UserID, sp.QuestionID, sp.EaseFactor, sp.Interval, sp.Repetitions, sp.NextReviewAt, sp.LastReviewAt,
+	).Scan(&sp.ID)
 }
 
-func (r *StudyRepository) GetByID(ctx context.Context, id string) (*model.StudyProgress, error){
-	query := `SELECT id, user_id, question_id, easy_factor, interval, repetitions, category, difficulty, next_review_at, last_reviewed_at FROM study_progress WHERE id = $1`
+func (r *StudyRepository) ListByUser(ctx context.Context, userID string) ([]model.StudyProgress, error) {
+	query := `SELECT id, user_id, question_id, ease_factor, interval, repetitions, next_review_at, last_reviewed_at
+	          FROM study_progress WHERE user_id = $1`
 
-	var studyProgress model.StudyProgress
-	err := r.db.GetContext(ctx, &studyProgress, query, id)
-	if err != nil{
-		return nil, err
+	var items []model.StudyProgress
+	err := r.db.SelectContext(ctx, &items, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list by user: %w", err)
 	}
-
-	return &studyProgress, nil
-}
-
-func (r *StudyRepository) List(ctx context.Context) ([]model.StudyProgress, error){
-	query := `SELECT id, user_id, question_id, easy_factor, interval, repetitions, category, difficulty, next_review_at, last_reviewed_at FROM study_progress`
-
- 	args := map[string]interface{}{}
-
-	var studyProgresses []model.StudyProgress
-	rows, err := r.db.NamedQueryContext(ctx, query, args)
-	if err != nil{
-        return nil, fmt.Errorf("listing study progresses: %w", err)
-	}
-	defer rows.Close()
-
-	for rows.Next(){
-		var sp model.StudyProgress
-
-		if err := rows.StructScan(&sp);err != nil{
-			return nil, fmt.Errorf("scanning study progresses: %v", err)
-		}
-		studyProgresses = append(studyProgresses, sp)
-	}
-
-	return studyProgresses, rows.Err()
-}
-
-
-func (r *StudyRepository) Upsert(ctx context.Context, studyProgress *model.StudyProgress) error{
-	// TODO update sql
-	query := `
-	INSERT INTO study_progress(user_id, question_id, easy_factor, interval, repetitions, category, difficulty, next_review_at, last_reviewed_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT
-	RETURNING id, user_id, question_id, easy_factor, interval, repetitions, category, difficulty, next_review_at, last_reviewed_at;
-	`
-
-	err := r.db.QueryRowContext(ctx, query, studyProgress.UserID, studyProgress.QuestionID, studyProgress.EasyFactor, studyProgress.Interval, studyProgress.Repetitions, studyProgress.NextReviewAt, studyProgress.LastReviewAt).
-	Scan(&studyProgress.ID, &studyProgress.UserID, &studyProgress.QuestionID, &studyProgress.EasyFactor, &studyProgress.Interval, &studyProgress.Repetitions, &studyProgress.NextReviewAt, &studyProgress.LastReviewAt)
-	
-	return err
-}
-
-
-func (r *StudyRepository) ListByUser(ctx context.Context, userID int64) ([]model.StudyProgress, error){
-	query := `SELECT id, user_id, question_id, easy_factor, interval, repetitions, category, difficulty, next_review_at, last_reviewed_at FROM study_progress`
-
- 	args := map[string]interface{}{}
-
-	var studyProgresses []model.StudyProgress
-	rows, err := r.db.NamedQueryContext(ctx, query, args)
-	if err != nil{
-        return nil, fmt.Errorf("listing study progresses: %w", err)
-	}
-	defer rows.Close()
-
-	for rows.Next(){
-		var sp model.StudyProgress
-
-		if err := rows.StructScan(&sp);err != nil{
-			return nil, fmt.Errorf("scanning study progresses: %v", err)
-		}
-		studyProgresses = append(studyProgresses, sp)
-	}
-
-	return studyProgresses, rows.Err()
-}
-
-func (r *StudyRepository) GetByUserAndQuestion(ctx context.Context, userID string, questionID string) (*model.StudyProgress, error){
-	query := `SELECT id, user_id, question_id, easy_factor, interval, repetitions, category, difficulty, next_review_at, last_reviewed_at FROM study_progress WHERE id = $1`
-
-	var studyProgress model.StudyProgress
-	err := r.db.GetContext(ctx, &studyProgress, query, id)
-	if err != nil{
-		return nil, err
-	}
-
-	return &studyProgress, nil
+	return items, nil
 }
