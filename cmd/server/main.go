@@ -6,11 +6,11 @@ import (
 	"net"
 	"os"
 
+	study1 "github.com/ivannnnnik/sr-proto/gen/go/study/v1"
 	"github.com/ivannnnnik/sr-study-service/internal/handler"
 	"github.com/ivannnnnik/sr-study-service/internal/repository"
 	"github.com/ivannnnnik/sr-study-service/internal/service"
-	study1 "github.com/ivannnnnik/sr-proto/gen/go/study/v1"
-
+	client 	"github.com/ivannnnnik/sr-study-service/internal/client"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
@@ -51,10 +51,16 @@ func main() {
 	log.Println("Database: Postgresql is connected!")
 
 	// Inicialized DB
+	questionAddr := os.Getenv("QUESTION_SERVICE_ADDR")
+	questionClient, err := client.NewQuestionClient(questionAddr)
+	if err != nil {
+		log.Fatalf("question client: %v", err)
+	}
+	defer questionClient.Close()
 
 	// DI
 	studyRepo := repository.NewStudyRepository(db)
-	studyService := service.NewStudyService(studyRepo)
+	studyService := service.NewStudyService(studyRepo, questionClient)
 	studyHandler := handler.NewStudyHandler(studyService)
 
 	// gRPC Server
