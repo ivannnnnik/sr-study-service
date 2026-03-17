@@ -34,7 +34,8 @@ func (s *StudyService) SubmitAnswer(ctx context.Context, userID, questionID stri
 	if err != nil {
 		return nil, err
 	}
-
+	
+	// Check exist question.
 	_, err = s.question.GetQuestion(ctx, questionID)
 	if err != nil{
 		return nil, fmt.Errorf("question not found: %w", err)
