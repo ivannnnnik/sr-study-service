@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	"google.golang.org/genproto/googleapis/maps/fleetengine/delivery/v1"
 )
 
 type Producer struct{
