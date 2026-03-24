@@ -1,9 +1,9 @@
 package kafka
 
 import (
+	"fmt"
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"log/slog"
 
