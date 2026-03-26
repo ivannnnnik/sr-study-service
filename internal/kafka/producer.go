@@ -66,3 +66,4 @@ func (p *Producer) Close(){
 	p.producer.Flush(5000)
 	p.producer.Close()
 }
+
