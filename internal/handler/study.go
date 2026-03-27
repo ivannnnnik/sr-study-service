@@ -27,6 +27,7 @@ func (h *StudyHandler) SubmitAnswer(ctx context.Context, req *studyv1.SubmitAnsw
 	if req.UserId == "" || req.QuestionId == "" {
 		return nil, status.Error(codes.InvalidArgument, "user_id and question_id required")
 	}
+	
 	if req.Quality < 0 || req.Quality > 5 {
 		return nil, status.Error(codes.InvalidArgument, "quality must be 0-5")
 	}
