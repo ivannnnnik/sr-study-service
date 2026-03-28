@@ -16,8 +16,7 @@ type QuestionClient struct{
 
 func NewQuestionClient(addr string)(*QuestionClient, error) {
 	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-
-	if err !=nil{
+	if err != nil{
 		return nil, fmt.Errorf("Fail connect to question-service: %w", err)
 	}
 
